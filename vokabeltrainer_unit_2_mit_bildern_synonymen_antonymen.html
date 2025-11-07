@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vokabeltrainer – Unit 2</title>
+<style>
+  :root{ --bg:#0f172a; --card:#111827; --muted:#9ca3af; --txt:#e5e7eb; --brand:#22c55e; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:radial-gradient(1200px 800px at 10% -10%, #1e293b 0%, #0b1222 60%, #050914 100%), var(--bg); color:var(--txt); display:flex; align-items:center; justify-content:center; padding:24px}
+  .app{width:100%; max-width:800px}
+  header{display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:16px}
+  .title{font-weight:700; display:flex; align-items:center; gap:10px}
+  .title span{font-size:14px; font-weight:500; color:var(--muted)}
+  .pill{border:1px solid #1f2937; background:#0b1222aa; padding:8px 12px; border-radius:12px}
+  .row{display:flex; gap:12px; flex-wrap:wrap}
+  .card{background:linear-gradient(180deg,#0b1222 0,#0b1222cc 100%); border:1px solid #1f2937; border-radius:16px; padding:18px; box-shadow:0 10px 30px #0008}
+  .toolbar{display:flex; gap:8px; flex-wrap:wrap}
+  button, select, input[type="text"]{background:#0b1222; color:var(--txt); border:1px solid #1f2937; border-radius:12px; padding:10px 14px; font:inherit}
+  button{cursor:pointer; transition:.15s transform,.2s background}
+  button:hover{transform:translateY(-1px)}
+  .primary{background:linear-gradient(90deg,var(--brand),#10b981); border-color:#065f46; color:#042b1f}
+  .ghost{background:#0b1222}
+  .mode-tabs{display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 4px}
+  .mode-btn[aria-selected="true"]{outline:2px solid var(--brand); background:#0f2a1f}
+  .big{display:flex; align-items:center; justify-content:center; text-align:center; min-height:180px; font-size:clamp(20px,4.2vw,36px); font-weight:800; border-radius:14px; background:linear-gradient(180deg,#0f172a, #0b1222); border:1px dashed #263243; padding:18px}
+  .muted{color:var(--muted)}
+  .grid-choices{display:grid; grid-template-columns:repeat(2,1fr); gap:10px}
+  .choice{padding:14px; border-radius:12px; border:1px solid #1f2937; background:#0b1222; cursor:pointer}
+  .choice.correct{outline:2px solid #10b981}
+  .choice.wrong{outline:2px solid #ef4444}
+  .footer{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:10px}
+  .progressbar{height:10px; background:#0b1222; border:1px solid #1f2937; border-radius:999px; overflow:hidden}
+  .progressbar>i{display:block; height:100%; width:0%; background:linear-gradient(90deg,#22c55e,#10b981)}
+  .imgbig{font-size:42px; margin-right:10px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title">
+      <div style="width:34px;height:34px;border-radius:10px;background:conic-gradient(from 0deg, #22c55e, #3b82f6, #22c55e);"></div>
+      <div>
+        <div>Vokabeltrainer</div>
+        <span>Unit 2 · In the spotlight</span>
+      </div>
+    </div>
+    <div class="row">
+      <div class="pill"><span class="small muted">Wörter:</span> <strong id="count">0</strong></div>
+      <div class="pill"><span class="small muted">Richtung:</span>
+        <select id="direction">
+          <option value="en-de">Englisch → Deutsch</option>
+          <option value="de-en">Deutsch → Englisch</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <section class="card">
+    <div class="toolbar">
+      <div class="mode-tabs" role="tablist" aria-label="Modus wählen">
+        <button class="mode-btn" role="tab" aria-selected="true" data-mode="flash">Karteikarten</button>
+        <button class="mode-btn" role="tab" aria-selected="false" data-mode="mc">Multiple Choice</button>
+        <button class="mode-btn" role="tab" aria-selected="false" data-mode="type">Tippen</button>
+      </div>
+      <div style="flex:1"></div>
+      <button id="speak" class="ghost" title="Vorlesen (EN)">🔊 Vorlesen</button>
+      <button id="reveal" class="ghost">Lösung zeigen</button>
+      <button id="next" class="primary">Nächste ⏭️</button>
+    </div>
+
+    <div id="prompt" class="big" aria-live="polite">Klicke auf „Nächste“.</div>
+
+    <div id="mcArea" style="display:none; margin-top:12px">
+      <div class="grid-choices" id="choices"></div>
+    </div>
+
+    <div id="typeArea" style="display:none; margin-top:12px">
+      <label class="sr-only" for="answerInput">Antwort eingeben</label>
+      <input id="answerInput" type="text" placeholder="Antwort hier tippen & Enter" autocomplete="off" />
+      <div class="hint" id="feedback" aria-live="polite"></div>
+    </div>
+
+    <div class="footer">
+      <div class="progressbar" style="flex:1"><i id="progressFill"></i></div>
+      <div class="hint" id="status">0/0 richtig</div>
+    </div>
+  </section>
+</div>
+
+<script>
+const WORDS = [
+  ["spotlight","Rampenlicht","💡"],
+  ["theatre","Theater","🎭"],
+  ["play","Theaterstück","🎬"],
+  ["screen","Leinwand","🖥️"],
+  ["singer","Sänger","🎤"],
+  ["also","auch","➕"],
+  ["dancer","Tänzer","💃"],
+  ["chat","chatten","💬"],
+  ["online","online","🌐"],
+  ["actor","Schauspieler","🎭"],
+  ["to give","geben","🎁"],
+  ["presentation","Präsentation","📊"],
+  ["well","gut","👍"],
+  ["breathe","atmen","🌬️"],
+  ["slowly","langsam","🐢"],
+  ["before","vor","⏪"],
+  ["stand up","aufstehen","🧍"],
+  ["over","über","⬆️"],
+  ["head","Kopf","🧑‍🦱"],
+  ["be comfortable","sich wohlfühlen","🛋️"],
+  ["stand","stehen","🚶"],
+  ["speak","sprechen","🗣️"],
+  ["fast","schnell","⚡"],
+  ["use","benutzen","🧰"],
+  ["carefully","sorgfältig","🧐"],
+  ["try","versuchen","🧗"],
+  ["answer","beantworten","💬"],
+  ["practice","üben","✏️"],
+  ["any","irgendwelche","❓"],
+  ["arm","Arm","💪"],
+  ["back","Rücken","🔙"],
+  ["ear","Ohr","👂"],
+  ["eye","Auge","👁️"],
+  ["leg","Bein","🦵"],
+  ["nose","Nase","👃"],
+  ["shoulder","Schulter","🤷"],
+  ["finger","Finger","☝️"],
+  ["mouth","Mund","👄"],
+  ["knee","Knie","🦵"],
+  ["toe","Zeh","🦶"],
+  ["smell","riechen","👃"],
+  ["neck","Hals","🧣"],
+  ["shake","schütteln","🤝"],
+  ["nod","nicken","🙂"],
+  ["smile","lächeln","😊"],
+  ["shrug","mit den Achseln zucken","🤷"],
+  ["clap","klatschen","👏"],
+  ["wave","winken","👋"],
+  ["clearly","deutlich","🔊"]
+];
+
+const dirSel=document.getElementById('direction');
+let DIRECTION=dirSel.value;
+const promptEl=document.getElementById('prompt');
+const mcArea=document.getElementById('mcArea');
+const choicesEl=document.getElementById('choices');
+const typeArea=document.getElementById('typeArea');
+const answerInput=document.getElementById('answerInput');
+const feedbackEl=document.getElementById('feedback');
+const countEl=document.getElementById('count');
+const statusEl=document.getElementById('status');
+const progressFill=document.getElementById('progressFill');
+countEl.textContent=WORDS.length;
+let MODE='flash'; let CURRENT=null; let ANSWER=''; let correctCount=0; let totalCount=0;
+
+const norm=s=>s.toLowerCase().replaceAll('ß','ss').replace(/[.,;:!?]/g,'').trim();
+const escapeHTML=str=>str.replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+function sample(arr,n){const c=[...arr];const out=[];while(c.length&&out.length<n){const i=Math.floor(Math.random()*c.length);out.push(c.splice(i,1)[0]);}return out}
+function shuffle(a){const arr=[...a];for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr}
+
+function formatQ(entry){const [en,de,emoji]=entry;if(DIRECTION==='en-de')return{q:en,a:de,emoji,speakText:en};return{q:de,a:en,emoji,speakText:en};}
+
+function updateStatus(){statusEl.textContent=`${correctCount}/${totalCount} richtig`;progressFill.style.width=`${(correctCount/Math.max(totalCount,1))*100}%`;}
+
+function renderQuestion(){
+  CURRENT=WORDS[Math.floor(Math.random()*WORDS.length)];
+  const M=formatQ(CURRENT);
+  ANSWER=M.a;
+  feedbackEl.textContent='';answerInput.value='';
+  promptEl.innerHTML=`<div style="display:flex;align-items:center;gap:8px">${M.emoji?`<span class='imgbig'>${M.emoji}</span>`:''}<div style="text-align:left"><div class='muted small'>Übersetze:</div><div style='margin-top:6px'>${escapeHTML(M.q)}</div></div></div>`;
+
+  if(MODE==='mc'){
+    mcArea.style.display='block';typeArea.style.display='none';
+    const pool=WORDS.map(w=>(DIRECTION==='en-de'?w[1]:w[0])).filter(v=>v!==M.a);
+    const options=shuffle([M.a,...sample(pool,3)]);
+    choicesEl.innerHTML='';
+    options.forEach(opt=>{
+      const b=document.createElement('button');b.type='button';b.className='choice';b.textContent=opt;
+      b.addEventListener('click',()=>{
+        totalCount++;
+        if(norm(opt)===norm(M.a)){
+          b.classList.add('correct');
+          correctCount++;
+          feedbackEl.innerHTML=`✅ Richtig! (${escapeHTML(M.a)})`;
+        } else {
+          b.classList.add('wrong');
+          feedbackEl.innerHTML=`❌ Falsch! Richtige Antwort: ${escapeHTML(M.a)}`;
+        }
+        [...choicesEl.children].forEach(c=>c.disabled=true);
+        updateStatus();
+      });
+      choicesEl.appendChild(b);
+    });
+  } else if(MODE==='type'){
+    mcArea.style.display='none';typeArea.style.display='block';answerInput.focus();
+  } else {mcArea.style.display='none';typeArea.style.display='none';}
+}
+
+function checkAnswer(given){
+  if(!CURRENT)return;
+  totalCount++;
+  const ok=norm(given)===norm(ANSWER);
+  if(ok)correctCount++;
+  feedbackEl.innerHTML=ok?`✅ Richtig! <span class='muted'>(${escapeHTML(ANSWER)})</span>`:`❌ <strong>Korrekt:</strong> ${escapeHTML(ANSWER)}<br><span class='muted'>Deine Antwort: ${escapeHTML(given)}</span>`;
+  updateStatus();
+}
+
+dirSel.addEventListener('change',()=>{DIRECTION=dirSel.value;renderQuestion();});
+Array.from(document.querySelectorAll('.mode-btn')).forEach(btn=>{btn.addEventListener('click',()=>{Array.from(document.querySelectorAll('.mode-btn')).forEach(b=>b.setAttribute('aria-selected','false'));btn.setAttribute('aria-selected','true');MODE=btn.dataset.mode;renderQuestion();});});
+document.getElementById('next').addEventListener('click',()=>{renderQuestion();});
+document.getElementById('reveal').addEventListener('click',()=>{if(CURRENT)feedbackEl.innerHTML=`<strong>Lösung:</strong> ${escapeHTML(ANSWER)}`;});
+answerInput.addEventListener('keydown',e=>{if(e.key==='Enter'){const val=answerInput.value.trim();if(val)checkAnswer(val);}});
+document.getElementById('speak').addEventListener('click',()=>{if(!CURRENT)return;const {speakText}=formatQ(CURRENT);const u=new SpeechSynthesisUtterance(speakText);u.lang='en-US';window.speechSynthesis.cancel();window.speechSynthesis.speak(u);});
+renderQuestion();
+</script>
+</body>
+</html>
